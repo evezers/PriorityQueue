@@ -1,28 +1,14 @@
 #include <iostream>
-#include <mutex>
+
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
-
 
 #include "../commons/Request.hpp"
 #include "../commons/Info.hpp"
 #include "../commons/PrintQueue.hpp"
 
 #include "QuickSort.hpp"
-
-/*
- * Разработка системы, реализующей планировщик очереди.
-    Существует процесс, генерирующий заявки различной вычилительной длины (выраженной в секундах)
-        и имеющий различный приоритет.
-    Существует процесс обработчик, который читает заявки из очереди и обрабатывает их
-        в соответствии с заданными параметрами длины.
-    Существует процесс - планировщик очереди.
-        Его задача: при поступлении очередной заявки переупорядочить очередь в соответствии с приоритетами.
-
-Очередь должна находиться в разделяемой памяти.
- */
-
 
 /*
  * TODO:
@@ -38,20 +24,9 @@ int main(){
         std::cerr << "Cannot open!" << std::endl;
     }
 
-
-
     // Create an empty message.
-    if(lseek(shm, 0, SEEK_END) < sizeof(Info)) {// Fill with zero
-//    if (ftruncate(shm, 0x60000) == 0){
-
-//        int result = lseek(mmapFd, size - 1, SEEK_SET);
-//        if (result == -1)
-//        {
-//            perror("lseek mmapFd failed");
-//            close(mmapFd);
-//            return NULL;
-//        }
-
+    if(lseek(shm, 0, SEEK_END) < sizeof(Info)) {
+        // Fill with zero
         lseek(shm, 0, SEEK_SET);
         Info dummy{};
         if(write(shm, &dummy, sizeof(Info)) < sizeof(Info)) {
@@ -60,49 +35,38 @@ int main(){
         }
     }
 
-    // Map the file to memory and obtain a pointer to that region.
-    void *map = nullptr;
+    Info *info;
+    Request *requests;
 
-    if((map = (mmap(nullptr, sizeof(Info), PROT_READ | PROT_WRITE, MAP_SHARED, shm, 0))) == MAP_FAILED) {
+    if (openPriorityQueue(shm, info, requests) == -1) {
         std::cout << "Cannot create mapping info" << std::endl;
         return -1;
-    }
-
-    Info *info = static_cast<Info *>(map);
-
-    for (uint8_t i = 10; i > 1; --i) {
-        Request request(i, 7);
-
-        auto writtten = write(shm, &request, sizeof(Request));
-        if (writtten < sizeof(Request)) {
-            std::cout << "Cannot initialize shm" << std::endl;
-            return -1;
-        }
-
-        std::cout << writtten << " " << request << std::endl;
-
-        info->count++;
     }
 
     while (true) {
         if (!info->dataSorted) {
             while (info->mutex.try_lock());
 
+            print_queue(info, requests);
 
-            // Map the file to memory and obtain a pointer to that region.
-            Request *request = reinterpret_cast<Request *>(static_cast<char *>(map) + sizeof(Info));
+            std::qsort(requests, info->count, sizeof(Request),
+                       [](const void* x, const void* y)
+                       {
+                           const Request arg1 = *static_cast<const Request*>(x);
+                           const Request arg2 = *static_cast<const Request*>(y);
 
-            print_queue(info, request);
-
-
-            //TODO: sort
-            quickSortIterative(request, 0, info->count - 1);
+                           const auto cmp = arg1 <=> arg2;
+                           if (cmp < 0)
+                               return -1;
+                           if (cmp > 0)
+                               return 1;
+                           return 0;
+                       }
+                       );
 
             info->dataSorted = true;
 
-            print_queue(info, request);
-
-            munmap(request, sizeof(Request) * info->count);
+            print_queue(info, requests);
 
             info->mutex.unlock();
         }

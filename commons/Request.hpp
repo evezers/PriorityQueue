@@ -12,20 +12,8 @@ public:
     uint8_t duration;
 
 public:
-    bool operator<(const Request &rhs) const {
-        return priority < rhs.priority;
-    }
-
-    bool operator>(const Request &rhs) const {
-        return rhs < *this;
-    }
-
-    bool operator<=(const Request &rhs) const {
-        return !(rhs < *this);
-    }
-
-    bool operator>=(const Request &rhs) const {
-        return !(*this < rhs);
+    auto operator<=>(const Request &rhs) const{
+        return priority - rhs.priority;
     }
 
 public:
@@ -33,8 +21,8 @@ public:
     Request(uint8_t priority, uint8_t duration):priority(priority), duration(duration) {}
 
     friend std::ostream &operator<<(std::ostream &os, const Request &request) {
-        os << "p: " << std::to_string(request.priority)
-           << ", d: " << std::to_string(request.duration);
+        os << "Priority: " << std::to_string(request.priority)
+           << ", duration: " << std::to_string(request.duration);
         return os;
     }
 };

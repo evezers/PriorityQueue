@@ -1,57 +1,49 @@
 #include <iostream>
-#include <mutex>
-#include <sys/mman.h>
-#include <fcntl.h>
-
-#include <unistd.h>
 #include <cstring>
 #include <thread>
+#include <csignal>
 
+#include <sys/mman.h>
+#include <fcntl.h>
 
 #include "../commons/Request.hpp"
 #include "../commons/Info.hpp"
 #include "../commons/PrintQueue.hpp"
 
-
-#include <signal.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-
-
 Request request1;
 bool requestProcessing = false;
 int shm;
-Info *info;
+Info *pInfo;
 
 
 void my_handler(int s){
+    printf("\nCaught signal %d\n", s);
+
     if (requestProcessing){
-        printf("\nReturn back\n");
+        printf("\nReturning back uncompleted request...\n");
 
-        info->mutex.lock();
+        // TODO: use comman add function
 
-        lseek(shm, static_cast<__off_t>(sizeof(Info) + static_cast<unsigned long>(info->count) * sizeof(Request)), SEEK_SET);
-//    Request newRequest(atoi(argv[1]), atoi(argv[2]));
+        pInfo->mutex.lock();
+
+        lseek(shm, static_cast<__off_t>(sizeof(Info) + (pInfo->count * sizeof(Request))), SEEK_SET);
 
         auto writtten = write(shm, &request1, sizeof(Request));
         if (writtten < sizeof(Request)) {
             std::cout << "Cannot initialize shm" << std::endl;
 //            return -1;
+        } else {
+            pInfo->dataSorted = false;
+            pInfo->count++;
+
+            std::cout << "Added: " << request1 << std::endl;
         }
 
-        std::cout << "Added: " << request1 << std::endl;
-
-        info->dataSorted = false;
-        info->count++;
-
-        info->mutex.unlock();
+        pInfo->mutex.unlock();
     }
 
-    printf("\nCaught signaldsfds %d\n",s);
     exit(1);
 }
-
 
 
 
@@ -59,48 +51,37 @@ int main(){
     shm = shm_open("priority_queue", O_RDWR, 0777);
 
     if (shm == -1){
-        std::cerr << "Cannot open!" << std::endl;
+        std::cerr << "Cannot open shared memory 'priority_queue'!" << std::endl;
+        return -1;
     }
 
+    Request *request;
 
-    // Map the file to memory and obtain a pointer to that region.
-    void *map;
-    if((map = mmap(nullptr, sizeof(Info), PROT_READ | PROT_WRITE, MAP_SHARED, shm, 0)) == MAP_FAILED) {
+    if (openPriorityQueue(shm, pInfo, request) == -1) {
         std::cout << "Cannot create mapping info" << std::endl;
         return -1;
     }
 
-    info = static_cast<Info *>(map);
+    print_queue(pInfo, request);
 
-    // Map the file to memory and obtain a pointer to that region.
-    Request *request = reinterpret_cast<Request *>(static_cast<char *>(map) + sizeof(Info));
-
-
-    print_queue(info, request);
-
-
-    struct sigaction sigIntHandler;
+    struct sigaction sigIntHandler{};
 
     sigIntHandler.sa_handler = my_handler;
     sigemptyset(&sigIntHandler.sa_mask);
     sigIntHandler.sa_flags = 0;
 
-    sigaction(SIGINT, &sigIntHandler, NULL);
+    sigaction(SIGINT, &sigIntHandler, nullptr);
 
-
-
-    while (info->count){
-
-
-        info->mutex.lock();
+    while (pInfo->count){
+        pInfo->mutex.lock();
         memcpy(&request1, request, sizeof(Request));
 
-        memcpy(request, &request[1], sizeof(Request) * (info->count - 1));
+        memcpy(request, &request[1], sizeof(Request) * (pInfo->count - 1));
 
-        info->dataSorted = false;
-        info->count--;
+        pInfo->dataSorted = false;
+        pInfo->count--;
 
-        info->mutex.unlock();
+        pInfo->mutex.unlock();
 
         std::cout << "Executing: " << request1 << ";";
 
@@ -118,7 +99,7 @@ int main(){
     }
 
     close(shm);
-    munmap(request, sizeof(Request) * info->count);
+    munmap(pInfo, sizeof(Info) + (sizeof(Request) * pInfo->count));
 
     return 0;
 }

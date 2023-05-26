@@ -1,8 +1,7 @@
 #include <iostream>
-#include <mutex>
+
 #include <sys/mman.h>
 #include <fcntl.h>
-
 #include <unistd.h>
 
 #include "../commons/Request.hpp"
@@ -16,34 +15,29 @@ int main(int argc, char* argv[]){
         std::cerr << "Cannot open!" << std::endl;
     }
 
+    Info *info;
+    Request *request;
 
-    // Map the file to memory and obtain a pointer to that region.
-    void *map = nullptr;
-    if((map = (mmap(nullptr, sizeof(Info), PROT_READ | PROT_WRITE, MAP_SHARED, shm, 0))) == MAP_FAILED) {
+    if (openPriorityQueue(shm, info, request) == -1) {
         std::cout << "Cannot create mapping info" << std::endl;
         return -1;
     }
 
-    Info *info = static_cast<Info *>(map);
-
-    // Map the file to memory and obtain a pointer to that region.
-    Request *request = reinterpret_cast<Request *>(static_cast<char *>(map) + sizeof(Info));
-
-
     print_queue(info, request);
 
-
-    munmap(request, sizeof(Request) * info->count);
+    size_t sharedMemoryLength = sizeof(Info) + (info->count * sizeof(Request));
 
 
     if (argc >= 3){
         info->mutex.lock();
 
-        lseek(shm, static_cast<__off_t>(sizeof(Info) + static_cast<unsigned long>(info->count) * sizeof(Request)), SEEK_SET);
-        Request newRequest(atoi(argv[1]), atoi(argv[2]));
+        auto memoryEnd = static_cast<__off_t>(sharedMemoryLength);
 
-        auto writtten = write(shm, &newRequest, sizeof(Request));
-        if (writtten < sizeof(Request)) {
+        lseek(shm, memoryEnd, SEEK_SET);
+        Request newRequest(std::stoi(argv[1]), std::stoi(argv[2]));
+
+        auto written = write(shm, &newRequest, sizeof(Request));
+        if (written < sizeof(Request)) {
             std::cout << "Cannot initialize shm" << std::endl;
             return -1;
         }
@@ -55,6 +49,8 @@ int main(int argc, char* argv[]){
 
         info->mutex.unlock();
     }
+
+    munmap(info, sharedMemoryLength);
 
     close(shm);
 
