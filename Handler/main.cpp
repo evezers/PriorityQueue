@@ -22,24 +22,11 @@ void my_handler(int s){
     if (requestProcessing){
         printf("\nReturning back uncompleted request...\n");
 
-        // TODO: use comman add function
-
-        pInfo->mutex.lock();
-
-        lseek(shm, static_cast<__off_t>(sizeof(Info) + (pInfo->count * sizeof(Request))), SEEK_SET);
-
-        auto writtten = write(shm, &request1, sizeof(Request));
-        if (writtten < sizeof(Request)) {
+        if (addRequest(shm, *pInfo, request1)){
             std::cout << "Cannot initialize shm" << std::endl;
-//            return -1;
         } else {
-            pInfo->dataSorted = false;
-            pInfo->count++;
-
             std::cout << "Added: " << request1 << std::endl;
         }
-
-        pInfo->mutex.unlock();
     }
 
     exit(1);

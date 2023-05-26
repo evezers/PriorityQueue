@@ -27,27 +27,16 @@ int main(int argc, char* argv[]){
 
     size_t sharedMemoryLength = sizeof(Info) + (info->count * sizeof(Request));
 
-
     if (argc >= 3){
-        info->mutex.lock();
+        auto newRequest = Request(
+            std::stoi(argv[1]),
+            std::stoi(argv[2]));
 
-        auto memoryEnd = static_cast<__off_t>(sharedMemoryLength);
-
-        lseek(shm, memoryEnd, SEEK_SET);
-        Request newRequest(std::stoi(argv[1]), std::stoi(argv[2]));
-
-        auto written = write(shm, &newRequest, sizeof(Request));
-        if (written < sizeof(Request)) {
+        if (addRequest(shm, *info, newRequest)){
             std::cout << "Cannot initialize shm" << std::endl;
-            return -1;
+        } else {
+            std::cout << "Added: " << request << std::endl;
         }
-
-        std::cout << "Added: " << newRequest << std::endl;
-
-        info->dataSorted = false;
-        info->count++;
-
-        info->mutex.unlock();
     }
 
     munmap(info, sharedMemoryLength);

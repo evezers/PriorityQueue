@@ -47,4 +47,26 @@ size_t openPriorityQueue(int shm, Info* &info, Request* &requests){
     return sizeof(Info) + (info->count * sizeof(Request));
 }
 
+bool addRequest(int shm, Info &info, const Request &request){
+    info.mutex.lock();
+
+    size_t sharedMemoryLength = sizeof(Info) + (info.count * sizeof(Request));
+
+    auto memoryEnd = static_cast<__off_t>(sharedMemoryLength);
+
+    lseek(shm, memoryEnd, SEEK_SET);
+
+    auto written = write(shm, &request, sizeof(Request));
+    if (written < sizeof(Request)) {
+        return false;
+    }
+
+    info.dataSorted = false;
+    info.count++;
+
+    info.mutex.unlock();
+
+    return true;
+}
+
 #endif //PRIORITYQUEUE_PRINTQUEUE_HPP

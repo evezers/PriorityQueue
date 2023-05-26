@@ -8,8 +8,6 @@
 #include "../commons/Info.hpp"
 #include "../commons/PrintQueue.hpp"
 
-#include "QuickSort.hpp"
-
 /*
  * TODO:
  * Тестирование для 10, 100, 1000 заявок по 2 секунды каждая.
