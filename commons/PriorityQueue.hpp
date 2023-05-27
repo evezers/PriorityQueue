@@ -7,6 +7,7 @@
 
 #include <ostream>
 #include <mutex>
+#include <cstring>
 
 #include <sys/mman.h>
 #include <fcntl.h>
@@ -125,7 +126,7 @@ public:
         return os;
     }
 
-    [[nodiscard]] bool add(const Request &request) const{
+    [[nodiscard]] bool push_back(const Request &request) const{
         info->mutex.lock();
 
         size_t sharedMemoryLength = sizeof(Info) + (info->count * sizeof(Request));
@@ -145,6 +146,24 @@ public:
         info->mutex.unlock();
 
         return true;
+    }
+
+    [[nodiscard]] Request pop_back() const{
+        Request request;
+
+        info->mutex.lock();
+        memcpy(&request, requests, sizeof(Request));
+
+        memcpy(requests, &requests[1],
+               sizeof(Request) * (info->count - 1));
+
+        // TODO: should be true, but there's the bug with parallel working sort
+        info->dataSorted = false;
+        info->count--;
+
+        info->mutex.unlock();
+
+        return request;
     }
 
     void close() const{

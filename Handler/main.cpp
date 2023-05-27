@@ -17,7 +17,7 @@ void my_handler(int s){
     if (requestProcessing){
         printf("\nReturning back uncompleted request...\n");
 
-        if (priorityQueue.add(request1)){
+        if (priorityQueue.push_back(request1)){
             std::cout << "Added: " << request1 << std::endl;
         } else {
             std::cout << "Cannot initialize shm" << std::endl;
@@ -49,17 +49,7 @@ int main(){
     sigaction(SIGINT, &sigIntHandler, nullptr);
 
     while (priorityQueue.info->count){
-        priorityQueue.info->mutex.lock();
-        memcpy(&request1, priorityQueue.requests, sizeof(Request));
-
-        memcpy(priorityQueue.requests, &priorityQueue.requests[1],
-               sizeof(Request) * (priorityQueue.info->count - 1));
-
-        // TODO: should be true, but there's the bug with parallel working sort
-        priorityQueue.info->dataSorted = false;
-        priorityQueue.info->count--;
-
-        priorityQueue.info->mutex.unlock();
+        request1 = priorityQueue.pop_back();
 
         std::cout << "Executing: " << request1 << ";";
 
