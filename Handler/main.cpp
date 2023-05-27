@@ -3,17 +3,12 @@
 #include <thread>
 #include <csignal>
 
-#include <sys/mman.h>
-#include <fcntl.h>
+#include "../commons/PriorityQueue.hpp"
 
-#include "../commons/Request.hpp"
-#include "../commons/Info.hpp"
-#include "../commons/PrintQueue.hpp"
+PriorityQueue priorityQueue;
 
 Request request1;
 bool requestProcessing = false;
-int shm;
-Info *pInfo;
 
 
 void my_handler(int s){
@@ -22,7 +17,7 @@ void my_handler(int s){
     if (requestProcessing){
         printf("\nReturning back uncompleted request...\n");
 
-        if (addRequest(shm, *pInfo, request1)){
+        if (priorityQueue.add(request1)){
             std::cout << "Cannot initialize shm" << std::endl;
         } else {
             std::cout << "Added: " << request1 << std::endl;
@@ -32,24 +27,18 @@ void my_handler(int s){
     exit(1);
 }
 
-
-
 int main(){
-    shm = shm_open("priority_queue", O_RDWR, 0777);
-
-    if (shm == -1){
-        std::cerr << "Cannot open shared memory 'priority_queue'!" << std::endl;
-        return -1;
-    }
-
-    Request *request;
-
-    if (openPriorityQueue(shm, pInfo, request) == -1) {
+    if (!priorityQueue.open()) {
         std::cout << "Cannot create mapping info" << std::endl;
         return -1;
     }
 
-    print_queue(pInfo, request);
+    if (priorityQueue.memoryMap() == -1) {
+        std::cout << "Cannot create mapping info." << std::endl;
+        return -1;
+    }
+
+    std::cout << priorityQueue;
 
     struct sigaction sigIntHandler{};
 
@@ -59,16 +48,18 @@ int main(){
 
     sigaction(SIGINT, &sigIntHandler, nullptr);
 
-    while (pInfo->count){
-        pInfo->mutex.lock();
-        memcpy(&request1, request, sizeof(Request));
+    while (priorityQueue.info->count){
+        priorityQueue.info->mutex.lock();
+        memcpy(&request1, priorityQueue.requests, sizeof(Request));
 
-        memcpy(request, &request[1], sizeof(Request) * (pInfo->count - 1));
+        memcpy(priorityQueue.requests, &priorityQueue.requests[1],
+               sizeof(Request) * (priorityQueue.info->count - 1));
 
-        pInfo->dataSorted = false;
-        pInfo->count--;
+        // TODO: should be true, but there's the bug with parallel working sort
+        priorityQueue.info->dataSorted = false;
+        priorityQueue.info->count--;
 
-        pInfo->mutex.unlock();
+        priorityQueue.info->mutex.unlock();
 
         std::cout << "Executing: " << request1 << ";";
 
@@ -85,8 +76,7 @@ int main(){
         std::cout << "; OK!" << std::endl;
     }
 
-    close(shm);
-    munmap(pInfo, sizeof(Info) + (sizeof(Request) * pInfo->count));
+    priorityQueue.close();
 
     return 0;
 }

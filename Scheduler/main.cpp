@@ -1,12 +1,6 @@
 #include <iostream>
 
-#include <sys/mman.h>
-#include <fcntl.h>
-#include <unistd.h>
-
-#include "../commons/Request.hpp"
-#include "../commons/Info.hpp"
-#include "../commons/PrintQueue.hpp"
+#include "../commons/PriorityQueue.hpp"
 
 /*
  * TODO:
@@ -15,39 +9,25 @@
 
 
 int main(){
-    shm_unlink("priority_queue");
-    int shm = shm_open("priority_queue", O_RDWR | O_CREAT, 0777);
+    PriorityQueue priorityQueue;
 
-    if (shm == -1){
-        std::cerr << "Cannot open!" << std::endl;
+    if (!priorityQueue.create()){
+        std::cerr << "Cannot create shared memory." << std::endl;
+        return -1;
     }
 
-    // Create an empty message.
-    if(lseek(shm, 0, SEEK_END) < sizeof(Info)) {
-        // Fill with zero
-        lseek(shm, 0, SEEK_SET);
-        Info dummy{};
-        if(write(shm, &dummy, sizeof(Info)) < sizeof(Info)) {
-            std::cout << "Cannot initialize shm" << std::endl;
-            return -1;
-        }
-    }
-
-    Info *info;
-    Request *requests;
-
-    if (openPriorityQueue(shm, info, requests) == -1) {
-        std::cout << "Cannot create mapping info" << std::endl;
+    if (priorityQueue.memoryMap() == -1) {
+        std::cout << "Cannot create mapping info." << std::endl;
         return -1;
     }
 
     while (true) {
-        if (!info->dataSorted) {
-            while (info->mutex.try_lock());
+        if (!priorityQueue.info->dataSorted) {
+            priorityQueue.info->mutex.lock();
 
-            print_queue(info, requests);
+            std::cout << priorityQueue;
 
-            std::qsort(requests, info->count, sizeof(Request),
+            std::qsort(priorityQueue.requests, priorityQueue.info->count, sizeof(Request),
                        [](const void* x, const void* y)
                        {
                            const Request arg1 = *static_cast<const Request*>(x);
@@ -62,19 +42,18 @@ int main(){
                        }
                        );
 
-            info->dataSorted = true;
+            priorityQueue.info->dataSorted = true;
 
-            print_queue(info, requests);
+            std::cout << "\033c";
+            std::cout << priorityQueue;
 
-            info->mutex.unlock();
+            priorityQueue.info->mutex.unlock();
         }
     }
 
+    priorityQueue.close();
 
-    // Unmap and unlink the shared memory.
-    munmap(info, sizeof(Info));
-    close(shm);
-    shm_unlink("priority_queue");
+    PriorityQueue::unlink();
 
     // Exit.
     return 0;
