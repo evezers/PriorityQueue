@@ -37,9 +37,9 @@ if(NOT CMAKE_CXX_EXTENSIONS)
     set(CMAKE_CXX_EXTENSIONS OFF)
 endif()
 
-add_subdirectory(Generator)
-add_subdirectory(Handler)
-add_subdirectory(Scheduler)
+add_subdirectory(src/Generator)
+add_subdirectory(src/Handler)
+add_subdirectory(src/Scheduler)
 
 add_custom_target(PriorityQueue)
 add_dependencies(PriorityQueue generator_main)
