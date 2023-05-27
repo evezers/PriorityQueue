@@ -1,4 +1,5 @@
 #include <iostream>
+#include <csignal>
 
 #include "../commons/PriorityQueue.hpp"
 
@@ -7,10 +8,17 @@
  * Тестирование для 10, 100, 1000 заявок по 2 секунды каждая.
  */
 
+PriorityQueue priorityQueue;
+
+void my_handler(int s){
+    printf("\nCaught signal %d\n", s);
+
+    priorityQueue.close();
+
+    exit(1);
+}
 
 int main(){
-    PriorityQueue priorityQueue;
-
     if (!priorityQueue.create()){
         std::cerr << "Cannot create shared memory." << std::endl;
         return -1;
@@ -20,6 +28,14 @@ int main(){
         std::cout << "Cannot create mapping info." << std::endl;
         return -1;
     }
+
+    struct sigaction sigIntHandler{};
+
+    sigIntHandler.sa_handler = my_handler;
+    sigemptyset(&sigIntHandler.sa_mask);
+    sigIntHandler.sa_flags = 0;
+
+    sigaction(SIGINT, &sigIntHandler, nullptr);
 
     while (true) {
         if (!priorityQueue.info->dataSorted) {

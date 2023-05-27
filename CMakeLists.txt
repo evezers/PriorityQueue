@@ -30,6 +30,7 @@ add_compile_options(
         -Wsign-promo
 
         -Wno-sign-compare
+        -Wno-sign-conversion
 )
 
 if(NOT CMAKE_CXX_EXTENSIONS)
