@@ -29,17 +29,17 @@ public:
 
 class Request{
 public:
-    uint8_t priority;
-    uint8_t duration;
+    unsigned priority;
+    unsigned duration;
 
 public:
-    auto operator<=>(const Request &rhs) const{
+    long operator<=>(const Request &rhs) const{
         return priority - rhs.priority;
     }
 
 public:
-    Request() :priority(0), duration(0) {};
-    Request(uint8_t priority, uint8_t duration):priority(priority), duration(duration) {}
+    Request() :priority(0), duration(0) {}
+    Request(unsigned priority, unsigned duration):priority(priority), duration(duration) {}
 
     friend std::ostream &operator<<(std::ostream &os, const Request &request) {
         os << "Priority: " << std::to_string(request.priority)
@@ -93,7 +93,7 @@ public:
      * @param requests Requsts of priority queue.
      * @return current size of memory of priority queue, -1 otherwise.
      */
-    size_t memoryMap(){
+    ssize_t memoryMap(){
         // Map the file to memory and obtain a pointer to that region.
         void *map;
         if((map = mmap(nullptr, sizeof(Info), PROT_READ | PROT_WRITE, MAP_SHARED, shm, 0)) == MAP_FAILED) {
@@ -105,7 +105,7 @@ public:
         info = reinterpret_cast<Info *>(sharedMemory);
         requests = reinterpret_cast<Request *>(sharedMemory + sizeof(Info));
 
-        return sizeof(Info) + (info->count * sizeof(Request));
+        return static_cast<ssize_t>(sizeof(Info) + (info->count * sizeof(Request)));
     }
 
     friend std::ostream &operator<<(std::ostream &os, const PriorityQueue &queue) {
@@ -117,7 +117,7 @@ public:
             std::cout << "No pending requests" << std::endl;
         }
 
-        for (int i = 0; i < queue.info->count; ++i) {
+        for (size_t i = 0; i < queue.info->count; ++i) {
             os << queue.requests[i] << std::endl;
         }
 

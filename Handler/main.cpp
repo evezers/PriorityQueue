@@ -1,5 +1,4 @@
 #include <iostream>
-#include <cstring>
 #include <thread>
 #include <csignal>
 
@@ -23,6 +22,8 @@ void my_handler(int s){
             std::cout << "Cannot initialize shm" << std::endl;
         }
     }
+
+    priorityQueue.close();
 
     exit(1);
 }
@@ -55,7 +56,7 @@ int main(){
 
         requestProcessing = true;
 
-        for (int i = 0; i < request1.duration; ++i) {
+        for (unsigned i = 0; i < request1.duration; ++i) {
             std::cout << ".";
             std::cout.flush();
             std::this_thread::sleep_for(std::chrono::seconds(1));
