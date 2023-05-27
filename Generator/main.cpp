@@ -22,10 +22,10 @@ int main(int argc, char* argv[]){
             std::stoi(argv[1]),
             std::stoi(argv[2]));
 
-        if (!priorityQueue.add(newRequest)){
-            std::cout << "Cannot initialize shm" << std::endl;
-        } else {
+        if (priorityQueue.add(newRequest)){
             std::cout << "Added: " << newRequest << std::endl;
+        } else {
+            std::cout << "Cannot initialize shm" << std::endl;
         }
     }
 

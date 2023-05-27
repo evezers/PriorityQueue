@@ -18,9 +18,9 @@ void my_handler(int s){
         printf("\nReturning back uncompleted request...\n");
 
         if (priorityQueue.add(request1)){
-            std::cout << "Cannot initialize shm" << std::endl;
-        } else {
             std::cout << "Added: " << request1 << std::endl;
+        } else {
+            std::cout << "Cannot initialize shm" << std::endl;
         }
     }
 

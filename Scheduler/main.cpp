@@ -23,7 +23,7 @@ int main(){
 
     while (true) {
         if (!priorityQueue.info->dataSorted) {
-            priorityQueue.info->mutex.lock();
+            while (priorityQueue.info->mutex.try_lock());
 
             std::cout << priorityQueue;
 
