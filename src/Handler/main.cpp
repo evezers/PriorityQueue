@@ -6,7 +6,7 @@
 
 PriorityQueue priorityQueue;
 
-Request request1;
+Request currentRequest;
 bool requestProcessing = false;
 
 
@@ -16,8 +16,8 @@ void my_handler(int s){
     if (requestProcessing){
         printf("\nReturning back uncompleted request...\n");
 
-        if (priorityQueue.push_back(request1)){
-            std::cout << "Added: " << request1 << std::endl;
+        if (priorityQueue.push_back(currentRequest)){
+            std::cout << "Added: " << currentRequest << std::endl;
         } else {
             std::cout << "Cannot initialize shm" << std::endl;
         }
@@ -54,13 +54,13 @@ int main(){
             prevRequestId = priorityQueue.info->requestsId;
         }
 
-        request1 = priorityQueue.pop_back();
+        currentRequest = priorityQueue.pop_back();
 
-        std::cout << "Executing: " << request1 << ";";
+        std::cout << "Executing: " << currentRequest << ";";
 
         requestProcessing = true;
 
-        for (unsigned i = 0; i < request1.duration; ++i) {
+        for (unsigned i = 0; i < currentRequest.duration; ++i) {
             std::cout << ".";
             std::cout.flush();
             std::this_thread::sleep_for(std::chrono::seconds(1));
