@@ -15,14 +15,31 @@
 
 class Info{
 public:
-    std::mutex mutex;
+    std::mutex mutex = std::mutex();
     size_t count = 0;
+    size_t maxCount = 1;
+    short requestsId = 1;
     bool dataSorted = false;
+
+    Info() = default;
+
+    Info(const Info &info) : mutex(), count(info.count), maxCount(info.maxCount),
+        requestsId(info.requestsId), dataSorted(info.dataSorted) {}
+
+    Info& operator=(const Info &info) {
+        count = info.count;
+        maxCount = info.maxCount;
+        requestsId = info.requestsId;
+        dataSorted = info.dataSorted;
+
+        return *this;
+    }
 
     friend std::ostream &operator<<(std::ostream &os, const Info &info) {
         os << "Priority queue info:" << std::endl
-           << "Count: " << std::to_string(info.count)
-           << ", dataSorted: " << (info.dataSorted ? "true" : "false");
+            << "Count: " << std::to_string(info.count) << "/" << std::to_string(info.maxCount)
+            << ", requestsId: " << std::to_string(info.requestsId)
+            << ", dataSorted: " << (info.dataSorted ? "true" : "false");
         return os;
     }
 };
@@ -33,7 +50,7 @@ public:
     unsigned duration;
 
 public:
-    long operator<=>(const Request &rhs) const{
+    auto operator<=>(const Request &rhs) const{
         return priority - rhs.priority;
     }
 
@@ -50,37 +67,67 @@ public:
 
 class PriorityQueue {
 public:
-    int shm = 0;
     Info *info = nullptr;
     Request *requests = nullptr;
 
     bool create(){
-        shm_unlink("priority_queue");
-        shm = shm_open("priority_queue", O_RDWR | O_CREAT, 0777);
+        shm_unlink("priorityQueueInfo");
+        int shmInfo = shm_open("priorityQueueInfo", O_RDWR | O_CREAT, 0777);
 
-        if (shm == -1){
+
+        if (shmInfo == -1){
             return false;
         }
 
-        // Create an empty message.
-        if(lseek(shm, 0, SEEK_END) < sizeof(Info)) {
-            // Fill with zero
-            lseek(shm, 0, SEEK_SET);
-            Info dummy{};
-            if(write(shm, &dummy, sizeof(Info)) < sizeof(Info)) {
-                return false;
-            }
+        memoryMapInfo(shmInfo);
+        ::close(shmInfo);
+
+        *info = Info();
+
+        shm_unlink("priorityQueueRequests");
+        int shmRequests = shm_open("priorityQueueRequests", O_RDWR | O_CREAT, 0777);
+
+        if (shmRequests == -1){
+            return false;
         }
+
+        void *map;
+        if((map = mmap(nullptr, info->maxCount * sizeof(Request), PROT_READ | PROT_WRITE,
+                       MAP_SHARED, shmRequests, 0)) == MAP_FAILED) {
+            return -1;
+        }
+
+        ::close(shmRequests);
+
+        requests = reinterpret_cast<Request *>(map);
 
         return true;
     }
 
     bool open(){
-        shm = shm_open("priority_queue", O_RDWR, 0777);
+        int shmInfo = shm_open("priorityQueueInfo", O_RDWR, 0777);
 
-        if (shm == -1){
+        if (shmInfo == -1){
             return false;
         }
+
+        memoryMapInfo(shmInfo);
+
+        ::close(shmInfo);
+
+        return true;
+    }
+
+    bool openRequests(){
+        int shmRequests = shm_open("priorityQueueRequests", O_RDWR, 0777);
+
+        if (shmRequests == -1){
+            return false;
+        }
+
+        memoryMapRequests(shmRequests);
+
+        ::close(shmRequests);
 
         return true;
     }
@@ -88,24 +135,52 @@ public:
     /**
      * Maps priority queue to shared memory.
      *
-     * @param shm Shared memory descriptor.
-     * @param info Information header of priority queue.
-     * @param requests Requsts of priority queue.
      * @return current size of memory of priority queue, -1 otherwise.
      */
-    ssize_t memoryMap(){
+    ssize_t memoryMapInfo(int shmInfo){
+        ftruncate(shmInfo, sizeof(Info));
+
         // Map the file to memory and obtain a pointer to that region.
         void *map;
-        if((map = mmap(nullptr, sizeof(Info), PROT_READ | PROT_WRITE, MAP_SHARED, shm, 0)) == MAP_FAILED) {
+        if((map = mmap(nullptr, sizeof(Info), PROT_READ | PROT_WRITE,
+                       MAP_SHARED, shmInfo, 0)) == MAP_FAILED) {
             return -1;
         }
 
         char *sharedMemory = static_cast<char *>(map);
 
         info = reinterpret_cast<Info *>(sharedMemory);
-        requests = reinterpret_cast<Request *>(sharedMemory + sizeof(Info));
 
-        return static_cast<ssize_t>(sizeof(Info) + (info->count * sizeof(Request)));
+        return static_cast<ssize_t>(sizeof(Info));
+    }
+
+    /**
+     * Maps priority queue to shared memory.
+     *
+     * @return current size of memory of priority queue, -1 otherwise.
+     */
+    ssize_t memoryMapRequests(int shmRequests){
+        auto memorySize = static_cast<off_t>(info->maxCount * sizeof(Request));
+
+        if (ftruncate(shmRequests, memorySize) == -1)
+        {
+            perror("Error in ftruncate");
+            return EXIT_FAILURE;
+        }
+
+
+        // Map the file to memory and obtain a pointer to that region.
+        void *map;
+        if((map = mmap(nullptr, memorySize, PROT_READ | PROT_WRITE,
+                       MAP_SHARED, shmRequests, 0)) == MAP_FAILED) {
+            return -1;
+        }
+
+        char *sharedMemory = static_cast<char *>(map);
+
+        requests = reinterpret_cast<Request *>(sharedMemory);
+
+        return static_cast<ssize_t>(info->maxCount * sizeof(Request));
     }
 
     friend std::ostream &operator<<(std::ostream &os, const PriorityQueue &queue) {
@@ -126,19 +201,45 @@ public:
         return os;
     }
 
+    [[nodiscard]] bool increaseMemory(){
+        if (info->count >= info->maxCount){
+            int shmRequests = shm_open("priorityQueueRequests", O_RDWR, 0777);
+
+            if (shmRequests == -1){
+                return false;
+            }
+
+            size_t newCount = info->maxCount * 2 + 1;
+
+            size_t oldSize = info->maxCount * sizeof(Request);
+            size_t newSize = newCount * sizeof(Request);
+
+            void *map;
+            if((map = mremap(requests, oldSize, newSize, MREMAP_MAYMOVE)) == MAP_FAILED) {
+                return false;
+            }
+
+            ::close(shmRequests);
+
+            if (map != requests){
+                requests = static_cast<Request *>(map);
+                info->requestsId++;
+            }
+
+            info->maxCount = newCount;
+        }
+
+        return true;
+    }
+
     [[nodiscard]] bool push_back(const Request &request) const{
-        info->mutex.lock();
-
-        size_t sharedMemoryLength = sizeof(Info) + (info->count * sizeof(Request));
-
-        auto memoryEnd = static_cast<__off_t>(sharedMemoryLength);
-
-        lseek(shm, memoryEnd, SEEK_SET);
-
-        auto written = write(shm, &request, sizeof(Request));
-        if (written < sizeof(Request)) {
+        if (info->count == info->maxCount){
             return false;
         }
+
+        while (info->mutex.try_lock());
+
+        requests[info->count] = request;
 
         info->dataSorted = false;
         info->count++;
@@ -149,16 +250,14 @@ public:
     }
 
     [[nodiscard]] Request pop_back() const{
+        while (info->mutex.try_lock());
+
         Request request;
 
-        info->mutex.lock();
-        memcpy(&request, requests, sizeof(Request));
+        std::copy(requests, &requests[1], &request);
+        std::copy(&requests[1], &requests[info->count], requests);
 
-        memcpy(requests, &requests[1],
-               sizeof(Request) * (info->count - 1));
-
-        // TODO: should be true, but there's the bug with parallel working sort
-        info->dataSorted = false;
+        info->dataSorted = true;
         info->count--;
 
         info->mutex.unlock();
@@ -167,15 +266,13 @@ public:
     }
 
     void close() const{
-        size_t sharedMemoryLength = sizeof(Info) + (info->count * sizeof(Request));
-
-        munmap(info, sharedMemoryLength);
-
-        ::close(shm);
+        munmap(requests, info->maxCount * sizeof(Request));
+        munmap(info, sizeof(Info));
     }
 
     static void unlink(){
-        shm_unlink("priority_queue");
+        shm_unlink("priorityQueueRequests");
+        shm_unlink("priorityQueueInfo");
     }
 };
 

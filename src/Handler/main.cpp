@@ -30,16 +30,11 @@ void my_handler(int s){
 
 int main(){
     if (!priorityQueue.open()) {
-        std::cout << "Cannot create mapping info" << std::endl;
+        std::cerr << "Cannot open shared memory 'priority_queue'!" << std::endl;
         return -1;
     }
 
-    if (priorityQueue.memoryMap() == -1) {
-        std::cout << "Cannot create mapping info." << std::endl;
-        return -1;
-    }
-
-    std::cout << priorityQueue;
+    auto prevRequestId = priorityQueue.info->requestsId - 1;
 
     struct sigaction sigIntHandler{};
 
@@ -50,6 +45,15 @@ int main(){
     sigaction(SIGINT, &sigIntHandler, nullptr);
 
     while (priorityQueue.info->count){
+        if (prevRequestId != priorityQueue.info->requestsId){
+            if (!priorityQueue.openRequests()) {
+                std::cerr << "Cannot reopen requests." << std::endl;
+                return -1;
+            }
+
+            prevRequestId = priorityQueue.info->requestsId;
+        }
+
         request1 = priorityQueue.pop_back();
 
         std::cout << "Executing: " << request1 << ";";

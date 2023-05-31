@@ -14,18 +14,14 @@ void my_handler(int s){
     printf("\nCaught signal %d\n", s);
 
     priorityQueue.close();
+    PriorityQueue::unlink();
 
-    exit(1);
+    exit(0);
 }
 
 int main(){
     if (!priorityQueue.create()){
         std::cerr << "Cannot create shared memory." << std::endl;
-        return -1;
-    }
-
-    if (priorityQueue.memoryMap() == -1) {
-        std::cout << "Cannot create mapping info." << std::endl;
         return -1;
     }
 
@@ -36,6 +32,8 @@ int main(){
     sigIntHandler.sa_flags = 0;
 
     sigaction(SIGINT, &sigIntHandler, nullptr);
+    sigaction(SIGTERM, &sigIntHandler, nullptr);
+    sigaction(SIGHUP, &sigIntHandler, nullptr);
 
     while (true) {
         if (!priorityQueue.info->dataSorted) {
@@ -49,16 +47,15 @@ int main(){
                            const Request arg1 = *static_cast<const Request*>(x);
                            const Request arg2 = *static_cast<const Request*>(y);
 
-                           const auto cmp = arg1 <=> arg2;
-                           if (cmp < 0)
-                               return -1;
-                           if (cmp > 0)
-                               return 1;
-                           return 0;
+                           return static_cast<int>(arg1 <=> arg2);
                        }
                        );
 
             priorityQueue.info->dataSorted = true;
+
+            if (!priorityQueue.increaseMemory()){
+                std::cerr << "Memory can't be increased" << std::endl;
+            }
 
             std::cout << "\033c";
             std::cout << priorityQueue;
