@@ -31,7 +31,7 @@ int main(int argc, char* argv[]){
         if (priorityQueue.push_back(newRequest)){
             std::cout << "Added: " << newRequest << std::endl;
         } else {
-            std::cerr << "Cannot write into shm" << std::endl;
+            std::cerr << "Cannot add to queue." << std::endl;
         }
     }
 

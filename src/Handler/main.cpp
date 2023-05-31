@@ -19,7 +19,7 @@ void my_handler(int s){
         if (priorityQueue.push_back(currentRequest)){
             std::cout << "Added: " << currentRequest << std::endl;
         } else {
-            std::cout << "Cannot initialize shm" << std::endl;
+            std::cout << "Cannot add to queue." << std::endl;
         }
     }
 
@@ -30,7 +30,7 @@ void my_handler(int s){
 
 int main(){
     if (!priorityQueue.open()) {
-        std::cerr << "Cannot open shared memory 'priority_queue'!" << std::endl;
+        std::cerr << "Cannot open shared memory regions for priority queue." << std::endl;
         return -1;
     }
 

@@ -23,7 +23,7 @@ void my_handler(int s){
 
 int main(){
     if (!priorityQueue.create()){
-        std::cerr << "Cannot create shared memory." << std::endl;
+        std::cerr << "Cannot create shared memory regions for priority queue." << std::endl;
         return -1;
     }
 
@@ -56,7 +56,7 @@ int main(){
             priorityQueue.info->dataSorted = true;
 
             if (!priorityQueue.increaseMemory()){
-                std::cerr << "Memory can't be increased" << std::endl;
+                std::cerr << "Memory can't be increased." << std::endl;
             }
 
             std::cout << "\033c";
