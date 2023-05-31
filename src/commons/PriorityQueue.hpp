@@ -5,9 +5,7 @@
 #ifndef PRIORITYQUEUE_PRIORITYQUEUE_HPP
 #define PRIORITYQUEUE_PRIORITYQUEUE_HPP
 
-#include <ostream>
 #include <mutex>
-#include <cstring>
 
 #include <sys/mman.h>
 #include <fcntl.h>
