@@ -67,6 +67,19 @@ class PriorityQueue {
 public:
     Info *info = nullptr;
     Request *requests = nullptr;
+    int prevRequestId = 0;
+
+    bool checkRequestId() {
+        if (prevRequestId != info->requestsId){
+            if (!openRequests()) {
+                return false;
+            }
+
+            prevRequestId = info->requestsId;
+        }
+
+        return true;
+    }
 
     bool create(){
         shm_unlink("priorityQueueInfo");
@@ -230,7 +243,11 @@ public:
         return true;
     }
 
-    [[nodiscard]] bool push_back(const Request &request) const{
+    [[nodiscard]] bool push_back(const Request &request) {
+        if (!checkRequestId()){
+            return false;
+        }
+
         if (info->count == info->maxCount){
             return false;
         }
@@ -247,7 +264,9 @@ public:
         return true;
     }
 
-    [[nodiscard]] Request pop_back() const{
+    [[nodiscard]] Request pop_back() {
+        checkRequestId();
+
         while (info->mutex.try_lock());
 
         Request request;

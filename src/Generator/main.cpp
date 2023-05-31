@@ -23,18 +23,7 @@ int main(int argc, char* argv[]){
         return -1;
     }
 
-    auto prevRequestId = priorityQueue.info->requestsId - 1;
-
     for (int i = 0; i < requestCount; ++i){
-        if (prevRequestId != priorityQueue.info->requestsId){
-            if (!priorityQueue.openRequests()) {
-                std::cerr << "Cannot reopen requests." << std::endl;
-                return -1;
-            }
-
-            prevRequestId = priorityQueue.info->requestsId;
-        }
-
         auto newRequest = Request(
             dist(mt),
             std::stoi(argv[2]));
