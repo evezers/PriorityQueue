@@ -28,6 +28,8 @@ int main(int argc, char* argv[]){
             dist(mt),
             std::stoi(argv[2]));
 
+        while (priorityQueue.info->count >= priorityQueue.info->maxCount);
+
         if (priorityQueue.push_back(newRequest)){
             std::cout << "Added: " << newRequest << std::endl;
         } else {
