@@ -13,6 +13,8 @@ PriorityQueue priorityQueue;
 void my_handler(int s){
     printf("\nCaught signal %d\n", s);
 
+    priorityQueue.info->count = 0;
+
     priorityQueue.close();
     PriorityQueue::unlink();
 
