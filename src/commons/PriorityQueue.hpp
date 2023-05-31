@@ -143,6 +143,26 @@ public:
         return true;
     }
 
+    void sort() const{
+        if (!info->dataSorted) {
+            while (info->mutex.try_lock());
+
+            std::qsort(requests, info->count, sizeof(Request),
+                       [](const void* x, const void* y)
+                       {
+                           const Request arg1 = *static_cast<const Request*>(x);
+                           const Request arg2 = *static_cast<const Request*>(y);
+
+                           return static_cast<int>(arg1 <=> arg2);
+                       }
+            );
+
+            info->dataSorted = true;
+
+            info->mutex.unlock();
+        }
+    }
+
     /**
      * Maps priority queue to shared memory.
      *
@@ -214,6 +234,8 @@ public:
 
     [[nodiscard]] bool increaseMemory(){
         if (info->count >= info->maxCount){
+            while (info->mutex.try_lock());
+
             int shmRequests = shm_open("priorityQueueRequests", O_RDWR, 0777);
 
             if (shmRequests == -1){
@@ -238,6 +260,8 @@ public:
             }
 
             info->maxCount = newCount;
+
+            info->mutex.unlock();
         }
 
         return true;

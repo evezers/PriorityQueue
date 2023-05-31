@@ -1,5 +1,6 @@
 #include <iostream>
 #include <csignal>
+#include <thread>
 
 #include "../commons/PriorityQueue.hpp"
 
@@ -38,32 +39,18 @@ int main(){
     sigaction(SIGHUP, &sigIntHandler, nullptr);
 
     while (true) {
-        if (!priorityQueue.info->dataSorted) {
-            while (priorityQueue.info->mutex.try_lock());
+        std::cout << "\033c"; // clear screen
 
-            std::cout << priorityQueue;
-
-            std::qsort(priorityQueue.requests, priorityQueue.info->count, sizeof(Request),
-                       [](const void* x, const void* y)
-                       {
-                           const Request arg1 = *static_cast<const Request*>(x);
-                           const Request arg2 = *static_cast<const Request*>(y);
-
-                           return static_cast<int>(arg1 <=> arg2);
-                       }
-                       );
-
-            priorityQueue.info->dataSorted = true;
-
-            if (!priorityQueue.increaseMemory()){
-                std::cerr << "Memory can't be increased." << std::endl;
-            }
-
-            std::cout << "\033c";
-            std::cout << priorityQueue;
-
-            priorityQueue.info->mutex.unlock();
+        if (!priorityQueue.increaseMemory()){
+            std::cerr << "Memory can't be increased." << std::endl;
         }
+
+        priorityQueue.sort();
+
+        std::cout << priorityQueue;
+        std::cout.flush();
+
+        std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 
     priorityQueue.close();
