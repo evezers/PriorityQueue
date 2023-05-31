@@ -274,7 +274,6 @@ public:
         std::copy(requests, &requests[1], &request);
         std::copy(&requests[1], &requests[info->count], requests);
 
-        info->dataSorted = true;
         info->count--;
 
         info->mutex.unlock();
