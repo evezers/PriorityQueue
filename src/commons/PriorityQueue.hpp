@@ -16,6 +16,7 @@ public:
     std::mutex mutex = std::mutex();
     size_t count = 0;
     size_t maxCount = 1;
+    size_t processedCount = 0;
     short requestsId = 1;
     bool dataSorted = false;
 
@@ -36,6 +37,7 @@ public:
     friend std::ostream &operator<<(std::ostream &os, const Info &info) {
         os << "Priority queue info:" << std::endl
             << "Count: " << std::to_string(info.count) << "/" << std::to_string(info.maxCount)
+            << ", processed: " << std::to_string(info.processedCount)
             << ", requestsId: " << std::to_string(info.requestsId)
             << ", dataSorted: " << (info.dataSorted ? "true" : "false");
         return os;
@@ -299,6 +301,7 @@ public:
         std::copy(&requests[1], &requests[info->count], requests);
 
         info->count--;
+        info->processedCount++;
 
         info->mutex.unlock();
 
