@@ -1,6 +1,7 @@
 #include <iostream>
 #include <csignal>
 #include <thread>
+#include <chrono>
 
 #include "../commons/PriorityQueue.hpp"
 
@@ -23,6 +24,8 @@ void exitScheduler(int s){
 }
 
 int main(int argc, char* argv[]){
+    auto begin = std::chrono::steady_clock::now();
+
     if (!priorityQueue.create()){
         std::cerr << "Cannot create shared memory regions for priority queue." << std::endl;
         return -1;
@@ -49,11 +52,15 @@ int main(int argc, char* argv[]){
 
         priorityQueue.sort();
 
-        std::cout << priorityQueue;
-        std::cout.flush();
+//        std::cout << priorityQueue;
+//        std::cout.flush();
 
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
+
+    auto end = std::chrono::steady_clock::now();
+    auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
+    std::cout << "The time: " << elapsed_ms.count() << " ms\n";
 
     exitScheduler(0);
 
