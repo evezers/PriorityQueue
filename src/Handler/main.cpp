@@ -10,8 +10,8 @@ Request currentRequest;
 bool requestProcessing = false;
 
 
-void my_handler(int s){
-    printf("\nCaught signal %d\n", s);
+void exitHandler(int s){
+    printf("\nHandler signal %d\n", s);
 
     if (requestProcessing){
         printf("\nReturning back uncompleted request...\n");
@@ -36,7 +36,7 @@ int main(){
 
     struct sigaction sigIntHandler{};
 
-    sigIntHandler.sa_handler = my_handler;
+    sigIntHandler.sa_handler = exitHandler;
     sigemptyset(&sigIntHandler.sa_mask);
     sigIntHandler.sa_flags = 0;
 
@@ -60,7 +60,7 @@ int main(){
         std::cout << "; OK!" << std::endl;
     }
 
-    priorityQueue.close();
+    exitHandler(0);
 
     return 0;
 }

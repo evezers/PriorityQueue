@@ -11,8 +11,8 @@
 
 PriorityQueue priorityQueue;
 
-void my_handler(int s){
-    printf("\nCaught signal %d\n", s);
+void exitScheduler(int s){
+    printf("\nScheduler signal %d\n", s);
 
     priorityQueue.info->count = 0;
 
@@ -30,7 +30,7 @@ int main(int argc, char* argv[]){
 
     struct sigaction sigIntHandler{};
 
-    sigIntHandler.sa_handler = my_handler;
+    sigIntHandler.sa_handler = exitScheduler;
     sigemptyset(&sigIntHandler.sa_mask);
     sigIntHandler.sa_flags = 0;
 
@@ -55,9 +55,7 @@ int main(int argc, char* argv[]){
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 
-    priorityQueue.close();
-
-    PriorityQueue::unlink();
+    exitScheduler(0);
 
     // Exit.
     return 0;
