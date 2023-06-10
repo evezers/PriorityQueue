@@ -22,7 +22,7 @@ void my_handler(int s){
     exit(0);
 }
 
-int main(){
+int main(int argc, char* argv[]){
     if (!priorityQueue.create()){
         std::cerr << "Cannot create shared memory regions for priority queue." << std::endl;
         return -1;
@@ -38,7 +38,9 @@ int main(){
     sigaction(SIGTERM, &sigIntHandler, nullptr);
     sigaction(SIGHUP, &sigIntHandler, nullptr);
 
-    while (true) {
+    int requestsToProcess = (argc == 2) ? std::stoi(argv[1]) : -1;
+
+    while (priorityQueue.info->processedCount < requestsToProcess) {
         std::cout << "\033c"; // clear screen
 
         if (!priorityQueue.increaseMemory()){
